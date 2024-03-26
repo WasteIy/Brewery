@@ -22,20 +22,32 @@ import java.util.Objects;
 public class CustomItem extends RecipeItem implements Ingredient {
 
 	private Material mat;
+	private int customModelData = 0;
 	private String name;
 	private List<String> lore;
 
-	public CustomItem() {
-	}
+	public CustomItem() {}
 
 	public CustomItem(Material mat) {
 		this.mat = mat;
+	}
+
+	public CustomItem(Material mat, int cmd) {
+		this.mat = mat;
+		this.customModelData = cmd;
 	}
 
 	public CustomItem(Material mat, String name, List<String> lore) {
 		this.mat = mat;
 		this.name = name;
 		this.lore = lore;
+	}
+
+	public CustomItem(Material mat, String name, List<String> lore, int cmd) {
+		this.mat = mat;
+		this.name = name;
+		this.lore = lore;
+		this.customModelData = cmd;
 	}
 
 	public CustomItem(ItemStack item) {
@@ -45,6 +57,7 @@ public class CustomItem extends RecipeItem implements Ingredient {
 		}
 		ItemMeta itemMeta = item.getItemMeta();
 		assert itemMeta != null;
+		if(itemMeta.hasCustomModelData()) customModelData = itemMeta.getCustomModelData();
 		if (itemMeta.hasDisplayName()) {
 			name = itemMeta.getDisplayName();
 		}
@@ -52,6 +65,9 @@ public class CustomItem extends RecipeItem implements Ingredient {
 			lore = itemMeta.getLore();
 		}
 	}
+
+	public void setCustomModelData(int cmd) { customModelData = cmd; }
+	public int getCustomModelData() { return customModelData; }
 
 	@Override
 	public boolean hasMaterials() {
@@ -117,16 +133,19 @@ public class CustomItem extends RecipeItem implements Ingredient {
 		if (isSimilar(ingredient)) {
 			return true;
 		}
-		if (ingredient instanceof RecipeItem) {
-			RecipeItem rItem = ((RecipeItem) ingredient);
-			if (rItem instanceof SimpleItem) {
+
+		if (ingredient instanceof RecipeItem rItem) {
+			if (rItem instanceof SimpleItem it) {
 				// If the recipe item is just a simple item, only match if we also only define material
 				// If this is a custom item with more info, we don't want to match a simple item
-				return hasMaterials() && !hasLore() && !hasName() && getMaterial() == ((SimpleItem) rItem).getMaterial();
-			} else if (rItem instanceof CustomItem) {
+				return hasMaterials() && !hasLore() && !hasName() && getMaterial() == it.getMaterial() && customModelData == it.customModelData;
+			} else if (rItem instanceof CustomItem other) {
 				// If the other is a CustomItem as well and not Similar to ours, it might have more data and we still match
-				CustomItem other = ((CustomItem) rItem);
 				if (mat == null || mat == other.mat) {
+					if(other.customModelData != customModelData) {
+						return false;
+					}
+
 					if (!hasName() || (other.name != null && name.equalsIgnoreCase(other.name))) {
 						return !hasLore() || lore == other.lore || (other.hasLore() && matchLore(other.lore));
 					}
@@ -143,12 +162,29 @@ public class CustomItem extends RecipeItem implements Ingredient {
 				return false;
 			}
 		}
+
+		if(customModelData == 0 && item.getItemMeta() != null){
+			if(item.getItemMeta().hasCustomModelData()) {
+				return false;
+			}
+		}
+
+		if(customModelData != 0){
+			if(!item.getItemMeta().hasCustomModelData()) {
+				return false;
+			}
+			if(item.getItemMeta().getCustomModelData() != customModelData) {
+				return false;
+			}
+		}
+
 		if (name == null && !hasLore()) {
 			return true;
 		}
 		if (!item.hasItemMeta()) {
 			return false;
 		}
+
 		ItemMeta meta = item.getItemMeta();
 		assert meta != null;
 		if (name != null) {
@@ -204,10 +240,11 @@ public class CustomItem extends RecipeItem implements Ingredient {
 		if (this == item) {
 			return true;
 		}
-		if (item instanceof CustomItem) {
-			CustomItem ci = ((CustomItem) item);
-			return mat == ci.mat && Objects.equals(name, ci.name) && Objects.equals(lore, ci.lore);
+		if (item instanceof CustomItem ci) {
+			System.out.println("Checking against ingredient with CMD: " + ci.customModelData + ", this is: " + customModelData);
+			return mat == ci.mat && Objects.equals(name, ci.name) && Objects.equals(lore, ci.lore) && ci.customModelData == customModelData;
 		}
+
 		return false;
 	}
 
@@ -229,6 +266,7 @@ public class CustomItem extends RecipeItem implements Ingredient {
 	public String toString() {
 		return "CustomItem{" +
 			"id=" + getConfigId() +
+			", cmd= " + customModelData +
 			", mat=" + (mat != null ? mat.name().toLowerCase() : "null") +
 			", name='" + name + '\'' +
 			", loresize: " + (lore != null ? lore.size() : 0) +
@@ -285,13 +323,13 @@ public class CustomItem extends RecipeItem implements Ingredient {
 		}
 	}
 
-	// Needs to be called at Server start
-	public static void registerItemLoader(P p) {
-		p.registerForItemLoader("CI", CustomItem::loadFrom);
-	}
-	
 	@Override
 	public String displayName() {
 		return this.name;
+	}
+
+	// Needs to be called at Server start
+	public static void registerItemLoader(P p) {
+		p.registerForItemLoader("CI", CustomItem::loadFrom);
 	}
 }

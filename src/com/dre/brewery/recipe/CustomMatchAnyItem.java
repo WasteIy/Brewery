@@ -17,6 +17,7 @@ import java.util.Objects;
  */
 public class CustomMatchAnyItem extends RecipeItem {
 
+	private int customModelData = 0;
 	private List<Material> materials;
 	private List<String> names;
 	private List<String> lore;
@@ -63,23 +64,47 @@ public class CustomMatchAnyItem extends RecipeItem {
 		this.lore = lore;
 	}
 
+	protected void setCustomModelData(int cmd) { this.customModelData = cmd; }
+
 	@NotNull
 	@Override
 	public Ingredient toIngredient(ItemStack forItem) {
 		// We only use the one part of this item that actually matched the given item to add to ingredients
 		Material mat = getMaterialMatch(forItem);
 		if (mat != null) {
-			return new CustomItem(mat);
+			if(customModelData != 0){
+				if(forItem.getItemMeta().hasCustomModelData() && customModelData == forItem.getItemMeta().getCustomModelData()){
+					return new CustomItem(mat, customModelData);
+				}
+			}else{
+				return new CustomItem(mat);
+			}
 		}
+
 		String name = getNameMatch(forItem);
 		if (name != null) {
-			return new CustomItem(null, name, null);
+			if(customModelData != 0){
+				if(forItem.getItemMeta().hasCustomModelData() && customModelData == forItem.getItemMeta().getCustomModelData()){
+					return new CustomItem(null, name, null, customModelData);
+				}
+			}else{
+				return new CustomItem(null, name, null);
+			}
 		}
+
 		String l = getLoreMatch(forItem);
 		if (l != null) {
-			List<String> lore = new ArrayList<>(1);
-			lore.add(l);
-			return new CustomItem(null, null, lore);
+			if(customModelData != 0){
+				if(forItem.getItemMeta().hasCustomModelData() && customModelData == forItem.getItemMeta().getCustomModelData()){
+					List<String> lore = new ArrayList<>(1);
+					lore.add(l);
+					return new CustomItem(null, null, lore, customModelData);
+				}
+			}else{
+				List<String> lore = new ArrayList<>(1);
+				lore.add(l);
+				return new CustomItem(null, null, lore);
+			}
 		}
 
 		// Shouldnt happen
@@ -167,12 +192,25 @@ public class CustomMatchAnyItem extends RecipeItem {
 
 	@Override
 	public boolean matches(ItemStack item) {
+		//If this item doesn't require any CMD but the item has one, return false
+		if(customModelData == 0 && item.getItemMeta() != null){
+			if(item.getItemMeta().hasCustomModelData()) return false;
+		}
+
+		if(customModelData != 0){
+			ItemMeta meta = item.getItemMeta();
+			if(meta == null) return false;
+			if(!meta.hasCustomModelData()) return false;
+			if(meta.getCustomModelData() != customModelData) return false;
+		}
+
 		if (getMaterialMatch(item) != null) {
 			return true;
 		}
 		if (getNameMatch(item) != null) {
 			return true;
 		}
+
 		return getLoreMatch(item) != null;
 	}
 
@@ -182,6 +220,7 @@ public class CustomMatchAnyItem extends RecipeItem {
 		if (ingredient instanceof CustomItem) {
 			// If the custom item has any of our data, we match
 			CustomItem ci = ((CustomItem) ingredient);
+			if(ci.getCustomModelData() != customModelData) return false;
 			if (hasMaterials() && ci.hasMaterials()) {
 				if (materials.contains(ci.getMaterial())) {
 					return true;
@@ -204,6 +243,11 @@ public class CustomMatchAnyItem extends RecipeItem {
 	}
 
 	@Override
+	public String displayName() {
+		return String.format("One of %s", String.join(", ", this.names));
+	}
+
+	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
@@ -211,7 +255,8 @@ public class CustomMatchAnyItem extends RecipeItem {
 		CustomMatchAnyItem that = (CustomMatchAnyItem) o;
 		return Objects.equals(materials, that.materials) &&
 			Objects.equals(names, that.names) &&
-			Objects.equals(lore, that.lore);
+			Objects.equals(lore, that.lore) &&
+			Objects.equals(customModelData, that.customModelData);
 	}
 
 	@Override
@@ -223,14 +268,10 @@ public class CustomMatchAnyItem extends RecipeItem {
 	public String toString() {
 		return "CustomMatchAnyItem{" +
 			"id=" + getConfigId() +
+			", customModelData: " + customModelData +
 			", materials: " + (materials != null ? materials.size() : 0) +
 			", names:" + (names != null ? names.size() : 0) +
 			", loresize: " + (lore != null ? lore.size() : 0) +
 			'}';
-	}
-	
-	@Override
-	public String displayName() {
-		return String.format("One of %s", String.join(", ", this.names));
 	}
 }

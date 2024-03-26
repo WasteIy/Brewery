@@ -77,13 +77,6 @@ public abstract class RecipeItem implements Cloneable {
 	public abstract List<Material> getMaterials();
 
 	/**
-	 * @return A user-displayable name for this recipeItem
-	 */
-	public abstract String displayName();
-
-
-
-	/**
 	 * @return The Id this Item uses in the config in the custom-items section
 	 */
 	@Nullable
@@ -171,10 +164,15 @@ public abstract class RecipeItem implements Cloneable {
 		if (rItem == null && (acceptAll || BCauldronRecipe.acceptedSimple.contains(item.getType()))) {
 			// No Custom item found
 			if (P.use1_13) {
-				return new SimpleItem(item.getType());
+				int cmd = 0;
+				if(item.getItemMeta() != null && item.getItemMeta().hasCustomModelData()) cmd = item.getItemMeta().getCustomModelData();
+				return new SimpleItem(item.getType(), cmd);
 			} else {
-				//noinspection deprecation
-				return new SimpleItem(item.getType(), item.getDurability());
+				@SuppressWarnings("deprecation")
+				short durability = item.getDurability();
+				int cmd = 0;
+				if(item.getItemMeta() != null && item.getItemMeta().hasCustomModelData()) cmd = item.getItemMeta().getCustomModelData();
+				return new SimpleItem(item.getType(), durability, cmd);
 			}
 		}
 		return rItem;
@@ -237,11 +235,19 @@ public abstract class RecipeItem implements Cloneable {
 				cItem.setName(names.get(0));
 			}
 			cItem.setLore(lore);
+			cItem.setCustomModelData(0);
+			if(cfg.contains(id + ".customModelData")){
+				cItem.setCustomModelData(cfg.getInt(id + ".customModelData"));
+			}
 		} else {
 			CustomMatchAnyItem maItem = (CustomMatchAnyItem) rItem;
 			maItem.setMaterials(materials);
 			maItem.setNames(names);
 			maItem.setLore(lore);
+			maItem.setCustomModelData(0);
+			if(cfg.contains(id + ".customModelData")){
+				maItem.setCustomModelData(cfg.getInt(id + ".customModelData"));
+			}
 		}
 
 		return rItem;
@@ -284,6 +290,11 @@ public abstract class RecipeItem implements Cloneable {
 		}
 		return materials;
 	}
+
+	/**
+	 * @return A user-displayable name for this recipeItem
+	 */
+	public abstract String displayName();
 
 	@Override
 	public boolean equals(Object o) {

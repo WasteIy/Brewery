@@ -18,6 +18,7 @@ import java.util.Objects;
 public class SimpleItem extends RecipeItem implements Ingredient {
 
 	private Material mat;
+	public int customModelData = 0;
 	private short dur; // Old Mc
 
 
@@ -25,9 +26,20 @@ public class SimpleItem extends RecipeItem implements Ingredient {
 		this(mat, (short) 0);
 	}
 
+	public SimpleItem(Material mat, int dur) {
+		this.mat = mat;
+		this.customModelData = dur;
+	}
+
 	public SimpleItem(Material mat, short dur) {
 		this.mat = mat;
 		this.dur = dur;
+	}
+
+	public SimpleItem(Material mat, short dur, int cmd) {
+		this.mat = mat;
+		this.dur = dur;
+		this.customModelData = cmd;
 	}
 
 	@Override
@@ -63,6 +75,16 @@ public class SimpleItem extends RecipeItem implements Ingredient {
 		if (!mat.equals(item.getType())) {
 			return false;
 		}
+
+		if(customModelData != 0){
+			if(item.getItemMeta() == null) return false;
+			if(!item.getItemMeta().hasCustomModelData()) return false;
+			if(item.getItemMeta().getCustomModelData() != customModelData) return false;
+		}
+		if(customModelData == 0 && item.getItemMeta() != null){
+			if(item.getItemMeta().hasCustomModelData()) return false;
+		}
+
 		//noinspection deprecation
 		return P.use1_13 || dur == item.getDurability();
 	}
@@ -109,6 +131,13 @@ public class SimpleItem extends RecipeItem implements Ingredient {
 	}
 
 	@Override
+	public String displayName() {
+		// approximate a user-friendly display name since
+		// server doesn't have access to translations :/
+		return mat.toString().toLowerCase().replace("_", " ");
+	}
+
+	@Override
 	public int hashCode() {
 		return Objects.hash(super.hashCode(), mat, dur);
 	}
@@ -148,13 +177,4 @@ public class SimpleItem extends RecipeItem implements Ingredient {
 		p.registerForItemLoader("SI", SimpleItem::loadFrom);
 	}
 
-	@Override
-	public String displayName() {
-		// approximate a user-friendly display name since
-		// server doesn't have access to translations :/
-		return mat.toString().toLowerCase().replace("_", " ");
-	}
-
-
 }
-
